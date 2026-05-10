@@ -315,20 +315,22 @@ select.form-input {
 /* Expense Row */
 .expense-row {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 12px;
   padding: 14px 0;
   border-bottom: 1px solid var(--border);
   cursor: pointer;
   width: 100%;
   box-sizing: border-box;
+  min-height: 56px;
+  -webkit-tap-highlight-color: rgba(255,255,255,0.04);
 }
 .expense-row:last-child { border-bottom: none; }
 .exp-icon { flex-shrink: 0; width: 42px; height: 42px; border-radius: 14px; background: var(--bg3); display: flex; align-items: center; justify-content: center; font-size: 20px; }
-.exp-info { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 3px; overflow: visible; }
+.exp-info { flex: 1; min-width: 0; overflow: hidden; display: flex; flex-direction: column; gap: 3px; }
 .exp-title { font-size: 15px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .exp-meta { font-size: 12px; color: var(--text2); margin-top: 3px; white-space: normal; overflow: visible; display: block; }
-.exp-amount { font-size: 16px; font-weight: 600; flex-shrink: 0; margin-top: 1px; }
+.exp-amount { font-size: 16px; font-weight: 600; flex-shrink: 0; min-width: 60px; text-align: right; white-space: nowrap; }
 .exp-tag { display: inline-block; padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 600; background: rgba(124,111,255,0.15); color: var(--accent2); margin-left: 6px; letter-spacing: 0.04em; }
 .pending-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--amber); flex-shrink: 0; }
 
@@ -711,11 +713,7 @@ button, a, .tag, .nav-btn, .fab, .exp-icon, .wish-check, .bill-check, .emoji-opt
 .swipe-content { will-change: transform; }
 
 /* Fix: expense row tap area */
-.expense-row {
-  min-height: 56px;
-  cursor: pointer;
-  -webkit-tap-highlight-color: rgba(255,255,255,0.04);
-}
+
 .expense-row:active { background: rgba(255,255,255,0.03); border-radius: 8px; }
 
 /* Fix: tag pills — bigger tap target */
@@ -6410,6 +6408,43 @@ function _storeWishlistForSearch(wishes) {
 }
 
 
+// ─── FIRESTORE CONNECTION TEST ────────────────────────────────────────────────
+async function testFirestore() {
+  const results = [];
+  results.push('User: ' + (currentUser ? currentUser.uid.slice(0,8) : 'NOT SIGNED IN'));
+  results.push('Workspace: ' + (currentWorkspaceId || 'NONE'));
+  
+  if (!currentUser || !currentWorkspaceId) {
+    alert('Test Results:\n' + results.join('\n'));
+    return;
+  }
+  
+  try {
+    // Try to READ the workspace document
+    const snap = await getDoc(doc(db, 'workspaces', currentWorkspaceId));
+    results.push('READ workspace: ' + (snap.exists() ? 'OK ✓' : 'NOT FOUND'));
+    
+    // Try to WRITE a test field
+    await updateDoc(doc(db, 'workspaces', currentWorkspaceId), { _test: Date.now() });
+    results.push('WRITE workspace: OK ✓');
+    
+    // Try to READ expenses
+    const q = query(collection(db, 'workspaces/' + currentWorkspaceId + '/expenses'), orderBy('date', 'desc'));
+    const eSnap = await getDocs(q);
+    results.push('READ expenses: OK ✓ (' + eSnap.size + ' docs)');
+    
+  } catch(err) {
+    results.push('ERROR: ' + err.code + ' - ' + err.message);
+    if (err.code === 'permission-denied') {
+      results.push('');
+      results.push('FIX: Firebase Console > Firestore > Rules');
+      results.push('Publish: allow read, write: if request.auth != null;');
+    }
+  }
+  
+  alert('Firestore Test:\n\n' + results.join('\n'));
+}
+
 // ─── WIRE ALL FUNCTIONS TO WINDOW ──────────────────────────────────────────
 // Simple direct assignment — works with onclick="" attributes
 // Called after all functions are defined
@@ -6432,6 +6467,7 @@ function _registerAllFunctions() {
     sendInvite: typeof sendInvite !== "undefined" ? sendInvite : null,
     openBudgetEdit: typeof openBudgetEdit !== "undefined" ? openBudgetEdit : null,
     saveBudget: typeof saveBudget !== "undefined" ? saveBudget : null,
+    testFirestore: typeof testFirestore !== "undefined" ? saveBudget : null,
     renderCatBudgetInputs: typeof renderCatBudgetInputs !== "undefined" ? renderCatBudgetInputs : null,
     subscribeExpenses: typeof subscribeExpenses !== "undefined" ? subscribeExpenses : null,
     subscribeRecurring: typeof subscribeRecurring !== "undefined" ? subscribeRecurring : null,
