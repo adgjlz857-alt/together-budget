@@ -2886,15 +2886,14 @@ function openBudgetEdit() {
 }
 
 async function saveBudget() {
-  // Confirm function is being called
-  const budgetVal = document.getElementById('budget-amount')?.value;
-  console.log('saveBudget called:', { currentWorkspaceId, budgetVal });
+  const amt = parseFloat(document.getElementById('budget-amount')?.value) || 0;
+  // Show alert immediately so we know function is being called
+  const confirmed = confirm('Save budget of $' + amt + '?\nWorkspace: ' + (currentWorkspaceId || 'MISSING'));
+  if (!confirmed) return;
   if (!currentWorkspaceId) {
-    alert('saveBudget: No workspace ID. Sign out and back in.');
+    alert('ERROR: No workspace ID');
     return;
   }
-  showToast('Saving...');
-  const amt = parseFloat(document.getElementById('budget-amount')?.value) || 0;
   const catBudgets = {};
   document.querySelectorAll('#cat-budget-inputs input[data-cat]').forEach(input => {
     const val = parseFloat(input.value);
@@ -2902,11 +2901,12 @@ async function saveBudget() {
   });
   const rollover = document.getElementById('rollover-toggle')?.checked || false;
   try {
-    await updateDoc(doc(db, 'workspaces', currentWorkspaceId), {
+    // Use setDoc with merge so it works even if doc structure differs
+    await setDoc(doc(db, 'workspaces', currentWorkspaceId), {
       monthlyBudget: amt,
       categoryBudgets: catBudgets,
       rollover
-    });
+    }, { merge: true });
     if (workspaceData) {
       workspaceData.monthlyBudget = amt;
       workspaceData.categoryBudgets = catBudgets;
