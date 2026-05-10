@@ -6410,6 +6410,43 @@ function _storeWishlistForSearch(wishes) {
 }
 
 
+// ─── FIRESTORE CONNECTION TEST ────────────────────────────────────────────────
+async function testFirestore() {
+  const results = [];
+  results.push('User: ' + (currentUser ? currentUser.uid.slice(0,8) : 'NOT SIGNED IN'));
+  results.push('Workspace: ' + (currentWorkspaceId || 'NONE'));
+  
+  if (!currentUser || !currentWorkspaceId) {
+    alert('Test Results:\n' + results.join('\n'));
+    return;
+  }
+  
+  try {
+    // Try to READ the workspace document
+    const snap = await getDoc(doc(db, 'workspaces', currentWorkspaceId));
+    results.push('READ workspace: ' + (snap.exists() ? 'OK ✓' : 'NOT FOUND'));
+    
+    // Try to WRITE a test field
+    await updateDoc(doc(db, 'workspaces', currentWorkspaceId), { _test: Date.now() });
+    results.push('WRITE workspace: OK ✓');
+    
+    // Try to READ expenses
+    const q = query(collection(db, 'workspaces/' + currentWorkspaceId + '/expenses'), orderBy('date', 'desc'));
+    const eSnap = await getDocs(q);
+    results.push('READ expenses: OK ✓ (' + eSnap.size + ' docs)');
+    
+  } catch(err) {
+    results.push('ERROR: ' + err.code + ' - ' + err.message);
+    if (err.code === 'permission-denied') {
+      results.push('');
+      results.push('FIX: Firebase Console > Firestore > Rules');
+      results.push('Publish: allow read, write: if request.auth != null;');
+    }
+  }
+  
+  alert('Firestore Test:\n\n' + results.join('\n'));
+}
+
 // ─── WIRE ALL FUNCTIONS TO WINDOW ──────────────────────────────────────────
 // Simple direct assignment — works with onclick="" attributes
 // Called after all functions are defined
@@ -6432,6 +6469,7 @@ function _registerAllFunctions() {
     sendInvite: typeof sendInvite !== "undefined" ? sendInvite : null,
     openBudgetEdit: typeof openBudgetEdit !== "undefined" ? openBudgetEdit : null,
     saveBudget: typeof saveBudget !== "undefined" ? saveBudget : null,
+    testFirestore: typeof testFirestore !== "undefined" ? saveBudget : null,
     renderCatBudgetInputs: typeof renderCatBudgetInputs !== "undefined" ? renderCatBudgetInputs : null,
     subscribeExpenses: typeof subscribeExpenses !== "undefined" ? subscribeExpenses : null,
     subscribeRecurring: typeof subscribeRecurring !== "undefined" ? subscribeRecurring : null,
